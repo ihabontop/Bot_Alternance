@@ -1,0 +1,82 @@
+# Configuration personnalisée du bot alternance
+# Les valeurs ici complètent/surchargent celles des variables d'environnement
+
+# Configuration des sites de scraping
+sites:
+  indeed:
+    enabled: true
+    max_pages: 5
+    custom_headers:
+      Accept-Language: "fr-FR,fr;q=0.9,en;q=0.8"
+
+  welcometothejungle:
+    enabled: true
+    max_pages: 3
+
+  hellowork:
+    enabled: true
+    max_pages: 3
+
+  labonnealternance:
+    enabled: true
+    # Utilise l'API officielle Pôle Emploi
+
+  linkedin:
+    enabled: false  # Désactivé par défaut (nécessite authentification)
+    max_pages: 2
+
+# Configuration du scraping
+scraping:
+  interval: 300  # 5 minutes
+  max_concurrent_requests: 3
+  request_delay: 2
+  retry_attempts: 3
+  retry_delay: 5
+
+# Configuration des métiers et mots-clés
+metiers_keywords:
+  "Développeur Web":
+    - "développeur web"
+    - "développeuse web"
+    - "web developer"
+    - "php"
+    - "javascript"
+    - "react"
+    - "vue"
+    - "angular"
+
+  "Data Analyst":
+    - "data analyst"
+    - "analyste données"
+    - "python"
+    - "sql"
+    - "tableau"
+    - "power bi"
+
+  "Marketing Digital":
+    - "marketing digital"
+    - "digital marketing"
+    - "seo"
+    - "sem"
+    - "social media"
+    - "community manager"
+
+# Configuration des notifications
+notifications:
+  max_per_hour: 10  # Maximum de notifications par utilisateur par heure
+  cooldown_minutes: 5  # Délai minimum entre deux notifications du même type
+
+# Configuration des filtres
+filters:
+  # Mots-clés à exclure
+  exclude_keywords:
+    - "stage"
+    - "bénévole"
+    - "freelance"
+    - "auto-entrepreneur"
+
+  # Entreprises à exclure (optionnel)
+  exclude_companies: []
+
+  # Salaire minimum (optionnel)
+  min_salary: null
