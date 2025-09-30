@@ -9,6 +9,39 @@ from typing import List
 def setup_commands(bot):
     """Configure toutes les commandes du bot"""
 
+    @bot.command(name='ping')
+    async def ping(ctx):
+        """Teste la latence du bot"""
+        latency = round(bot.latency * 1000)
+        await ctx.send(f"🏓 Pong! Latence: {latency}ms")
+
+    @bot.command(name='status')
+    async def status(ctx):
+        """Affiche le statut du bot"""
+        from datetime import datetime
+        embed = discord.Embed(
+            title="📊 Statut du Bot",
+            color=discord.Color.blue()
+        )
+
+        # Sites activés
+        enabled_sites = bot.settings.get_enabled_sites()
+        embed.add_field(
+            name="🌐 Sites surveillés",
+            value=", ".join(enabled_sites) if enabled_sites else "Aucun",
+            inline=True
+        )
+
+        # Monitoring
+        status_text = "🟢 Actif" if bot.monitoring_active else "🔴 Inactif"
+        embed.add_field(
+            name="🔍 Monitoring",
+            value=status_text,
+            inline=True
+        )
+
+        await ctx.send(embed=embed)
+
     @bot.command(name='help')
     async def help_command(ctx):
         """Affiche l'aide du bot"""
@@ -343,3 +376,83 @@ def setup_commands(bot):
         except Exception as e:
             bot.logger.error(f"Erreur admin stats: {e}")
             await ctx.send("❌ Erreur lors de la récupération des statistiques.")
+
+    @bot.command(name='force-scrape')
+    @commands.has_permissions(administrator=True)
+    async def force_scrape(ctx, metier_id: int = None):
+        """Force un scraping immédiat (admin uniquement)"""
+        try:
+            await ctx.send("🔍 Lancement du scraping manuel...")
+
+            from scrapers import get_scraper
+            import asyncio
+
+            # Récupérer les métiers à scraper
+            if metier_id:
+                metier = await bot.db_manager.get_metier_by_id(metier_id)
+                if not metier:
+                    await ctx.send(f"❌ Métier ID {metier_id} introuvable.")
+                    return
+                metiers = [metier]
+            else:
+                metiers = await bot.db_manager.get_all_metiers()
+
+            total_jobs = 0
+
+            # Scraper chaque site
+            for site_name in bot.settings.get_enabled_sites():
+                site_config = bot.settings.get_site_config(site_name)
+
+                try:
+                    scraper = get_scraper(site_name, site_config)
+
+                    async with scraper:
+                        for metier in metiers:
+                            # Convertir Metier en dict pour le scraper
+                            metier_dict = metier.to_dict()
+                            jobs = await scraper.search_jobs(metier_dict)
+
+                            bot.logger.info(f"🔍 {site_name}: {len(jobs)} offres trouvées")
+
+                            for job in jobs:
+                                bot.logger.info(f"💾 Tentative sauvegarde: {job.get('titre', 'N/A')}")
+                                saved_job = await bot.db_manager.save_offre(job)
+                                if saved_job:
+                                    total_jobs += 1
+                                    bot.logger.info(f"✅ Nouvelle offre sauvegardée: {saved_job.titre}")
+                                    await bot._notify_new_job(saved_job, metier_dict)
+                                else:
+                                    bot.logger.info(f"⚠️ Offre déjà existante ou erreur")
+
+                            await asyncio.sleep(2)
+
+                except Exception as e:
+                    bot.logger.error(f"Erreur scraping {site_name}: {e}")
+                    await ctx.send(f"⚠️ Erreur sur {site_name}: {str(e)[:100]}")
+
+                await asyncio.sleep(3)
+
+            await ctx.send(f"✅ Scraping terminé ! {total_jobs} nouvelles offres trouvées.")
+
+        except Exception as e:
+            bot.logger.error(f"Erreur force scrape: {e}")
+            await ctx.send(f"❌ Erreur: {str(e)[:200]}")
+
+    @bot.command(name='test-url')
+    @commands.has_permissions(administrator=True)
+    async def test_url(ctx, url: str):
+        """Teste le scraping d'une URL spécifique (debug)"""
+        try:
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    html = await response.text()
+                    await ctx.send(f"✅ Status: {response.status}\n📄 Longueur HTML: {len(html)} caractères\n🔗 URL: {url}")
+
+                    # Sauvegarder dans un fichier pour inspection
+                    with open('debug_page.html', 'w', encoding='utf-8') as f:
+                        f.write(html)
+                    await ctx.send("💾 HTML sauvegardé dans `debug_page.html`")
+
+        except Exception as e:
+            await ctx.send(f"❌ Erreur: {str(e)[:200]}")

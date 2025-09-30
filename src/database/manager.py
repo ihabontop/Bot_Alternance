@@ -131,11 +131,60 @@ class DatabaseManager:
             )
             return result.scalar_one_or_none()
 
+    async def get_metier_by_name(self, nom: str) -> Optional[Metier]:
+        """Récupère un métier par son nom"""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(Metier).where(Metier.nom == nom)
+            )
+            return result.scalar_one_or_none()
+
+    async def add_metier(self, nom: str, description: str, category: str, keywords: List[str], code_rome: str = None) -> Metier:
+        """Ajoute un nouveau métier"""
+        import json
+        async with self.async_session() as session:
+            metier = Metier(
+                nom=nom,
+                description=description,
+                category=category,
+                keywords=json.dumps(keywords),
+                code_rome=code_rome,
+                is_active=True
+            )
+            session.add(metier)
+            await session.commit()
+            await session.refresh(metier)
+            return metier
+
+    async def update_metier_keywords(self, metier_id: int, keywords: List[str]) -> bool:
+        """Met à jour les mots-clés d'un métier"""
+        import json
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(Metier).where(Metier.id == metier_id)
+            )
+            metier = result.scalar_one_or_none()
+            if metier:
+                metier.keywords = json.dumps(keywords)
+                await session.commit()
+                return True
+            return False
+
     async def add_user_metier(self, discord_id: str, metier_id: int) -> bool:
         """Ajoute un métier aux préférences d'un utilisateur"""
         async with self.async_session() as session:
-            user = await self.get_user_by_discord_id(discord_id)
-            metier = await self.get_metier_by_id(metier_id)
+            # Récupérer user et metier dans la même session
+            user_result = await session.execute(
+                select(User)
+                .options(selectinload(User.metiers))
+                .where(User.discord_id == discord_id)
+            )
+            user = user_result.scalar_one_or_none()
+
+            metier_result = await session.execute(
+                select(Metier).where(Metier.id == metier_id)
+            )
+            metier = metier_result.scalar_one_or_none()
 
             if user and metier and metier not in user.metiers:
                 user.metiers.append(metier)
@@ -146,8 +195,18 @@ class DatabaseManager:
     async def remove_user_metier(self, discord_id: str, metier_id: int) -> bool:
         """Retire un métier des préférences d'un utilisateur"""
         async with self.async_session() as session:
-            user = await self.get_user_by_discord_id(discord_id)
-            metier = await self.get_metier_by_id(metier_id)
+            # Récupérer user et metier dans la même session
+            user_result = await session.execute(
+                select(User)
+                .options(selectinload(User.metiers))
+                .where(User.discord_id == discord_id)
+            )
+            user = user_result.scalar_one_or_none()
+
+            metier_result = await session.execute(
+                select(Metier).where(Metier.id == metier_id)
+            )
+            metier = metier_result.scalar_one_or_none()
 
             if user and metier and metier in user.metiers:
                 user.metiers.remove(metier)

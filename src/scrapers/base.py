@@ -5,6 +5,7 @@ Scraper de base et utilitaires communs
 import asyncio
 import aiohttp
 import logging
+import random
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -19,13 +20,22 @@ class BaseScraper(ABC):
         self.session = None
         self.logger = logging.getLogger(self.__class__.__name__)
         self.base_url = config.get('base_url', '')
+
+        # Headers plus réalistes pour imiter un vrai navigateur
         self.headers = {
             'User-Agent': config.get('user_agent',
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'fr-FR,fr;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+            'DNT': '1',
         }
 
     async def __aenter__(self):
@@ -68,18 +78,32 @@ class BaseScraper(ABC):
         """
         pass
 
-    async def fetch_page(self, url: str, params: Dict = None) -> Optional[str]:
-        """Récupère le contenu HTML d'une page"""
-        try:
-            async with self.session.get(url, params=params) as response:
-                if response.status == 200:
-                    return await response.text()
+    async def fetch_page(self, url: str, params: Dict = None, retry: int = 3) -> Optional[str]:
+        """Récupère le contenu HTML d'une page avec retry et délai humain"""
+        for attempt in range(retry):
+            try:
+                # Délai aléatoire entre 1 et 3 secondes pour simuler comportement humain
+                if attempt > 0:
+                    await asyncio.sleep(random.uniform(2, 5))
+
+                async with self.session.get(url, params=params, allow_redirects=True) as response:
+                    if response.status == 200:
+                        return await response.text()
+                    elif response.status == 403 and attempt < retry - 1:
+                        self.logger.warning(f"HTTP 403 pour {url}, tentative {attempt + 1}/{retry}")
+                        await asyncio.sleep(random.uniform(3, 6))  # Attendre plus longtemps avant retry
+                        continue
+                    else:
+                        self.logger.warning(f"HTTP {response.status} pour {url}")
+                        return None
+            except Exception as e:
+                if attempt < retry - 1:
+                    self.logger.warning(f"Erreur fetch {url} (tentative {attempt + 1}/{retry}): {e}")
+                    await asyncio.sleep(random.uniform(2, 4))
                 else:
-                    self.logger.warning(f"HTTP {response.status} pour {url}")
+                    self.logger.error(f"Erreur finale fetch {url}: {e}")
                     return None
-        except Exception as e:
-            self.logger.error(f"Erreur lors du fetch {url}: {e}")
-            return None
+        return None
 
     async def fetch_json(self, url: str, params: Dict = None) -> Optional[Dict]:
         """Récupère des données JSON depuis une API"""
@@ -155,3 +179,25 @@ class BaseScraper(ABC):
         if relative_url.startswith('http'):
             return relative_url
         return urljoin(self.base_url, relative_url)
+
+    async def human_delay(self, min_seconds: float = 1, max_seconds: float = 3):
+        """Ajoute un délai aléatoire pour simuler un comportement humain"""
+        await asyncio.sleep(random.uniform(min_seconds, max_seconds))
+
+    def _build_keywords(self, metier: Dict) -> List[str]:
+        """Construit la liste des mots-clés depuis le métier"""
+        import json
+        keywords_str = metier.get('keywords', '[]')
+        try:
+            keywords = json.loads(keywords_str) if isinstance(keywords_str, str) else keywords_str
+            return keywords[:5]  # Limiter à 5 mots-clés
+        except:
+            return [metier['nom']]
+
+    def _is_valid_job(self, job: Dict) -> bool:
+        """Vérifie si une offre est valide"""
+        return bool(
+            job.get('titre') and
+            job.get('url') and
+            len(job.get('titre', '')) > 5
+        )

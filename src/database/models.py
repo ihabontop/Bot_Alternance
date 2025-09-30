@@ -53,6 +53,18 @@ class Metier(Base):
     users = relationship("User", secondary=user_metiers, back_populates="metiers")
     offres = relationship("OffreEmploi", back_populates="metier")
 
+    def to_dict(self):
+        """Convertit le métier en dictionnaire"""
+        return {
+            'id': self.id,
+            'nom': self.nom,
+            'description': self.description,
+            'category': self.category,
+            'keywords': self.keywords,
+            'code_rome': self.code_rome,
+            'is_active': self.is_active
+        }
+
 class OffreEmploi(Base):
     """Offres d'emploi scrapées"""
     __tablename__ = 'offres_emploi'

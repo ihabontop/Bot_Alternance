@@ -22,10 +22,15 @@ def setup_logging():
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('logs/bot.log'),
+            logging.FileHandler('logs/bot.log', encoding='utf-8'),
             logging.StreamHandler()
         ]
     )
+
+    # Configurer StreamHandler pour supporter les emojis
+    for handler in logging.root.handlers:
+        if isinstance(handler, logging.StreamHandler) and handler.stream.name == '<stderr>':
+            handler.stream.reconfigure(encoding='utf-8')
 
 async def main():
     """Fonction principale"""

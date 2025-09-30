@@ -89,7 +89,7 @@ class AlternanceBot(commands.Bot):
             return
 
         try:
-            from ..scrapers import get_scraper
+            from scrapers import get_scraper
 
             # Récupérer tous les métiers actifs
             metiers = await self.db_manager.get_all_metiers()
@@ -108,7 +108,9 @@ class AlternanceBot(commands.Bot):
 
                     async with scraper:
                         for metier in metiers:
-                            await self._monitor_metier(scraper, metier)
+                            # Convertir Metier en dict pour le scraper
+                            metier_dict = metier.to_dict()
+                            await self._monitor_metier(scraper, metier_dict)
                             await asyncio.sleep(2)  # Délai entre les métiers
 
                 except Exception as e:
@@ -222,43 +224,3 @@ class AlternanceBot(commands.Bot):
 
         await self.db_manager.close()
         await super().close()
-
-    # Commandes de base intégrées
-    @commands.command(name='ping')
-    async def ping(self, ctx):
-        """Teste la latence du bot"""
-        latency = round(self.latency * 1000)
-        await ctx.send(f"🏓 Pong! Latence: {latency}ms")
-
-    @commands.command(name='status')
-    async def status(self, ctx):
-        """Affiche le statut du bot"""
-        embed = discord.Embed(
-            title="📊 Statut du Bot",
-            color=discord.Color.blue()
-        )
-
-        # Informations générales
-        embed.add_field(
-            name="🤖 Bot",
-            value=f"Actif depuis {(datetime.now() - self.get_cog('Jishaku').start_time).seconds // 3600}h" if self.get_cog('Jishaku') else "Actif",
-            inline=True
-        )
-
-        # Sites activés
-        enabled_sites = self.settings.get_enabled_sites()
-        embed.add_field(
-            name="🌐 Sites surveillés",
-            value=", ".join(enabled_sites) if enabled_sites else "Aucun",
-            inline=True
-        )
-
-        # Monitoring
-        status_text = "🟢 Actif" if self.monitoring_active else "🔴 Inactif"
-        embed.add_field(
-            name="🔍 Monitoring",
-            value=status_text,
-            inline=True
-        )
-
-        await ctx.send(embed=embed)

@@ -91,8 +91,40 @@ class Settings:
 
         # Configuration des sites de scraping
         self.sites_config = {
+            'indeed_vps': {
+                'enabled': True,  # Scraper via API Selenium sur VPS
+                'base_url': 'https://fr.indeed.com',
+                'vps_api_url': 'http://45.158.77.193:5000',
+                'max_pages': 1
+            },
+            'indeed_curlcffi': {
+                'enabled': False,  # Incompatible Python 3.13
+                'base_url': 'https://fr.indeed.com',
+                'max_pages': 1
+            },
+            'indeed_cloudscraper': {
+                'enabled': False,  # 403 - remplacé par VPS
+                'base_url': 'https://fr.indeed.com',
+                'max_pages': 1
+            },
+            'indeed_selenium': {
+                'enabled': False,  # Trop lourd - remplacé par VPS
+                'base_url': 'https://fr.indeed.com',
+                'max_pages': 1
+            },
+            'francetravail': {
+                'enabled': False,  # 403 - en attente résolution
+                'base_url': 'https://api.francetravail.io',
+                'client_id': os.getenv('FRANCETRAVAIL_CLIENT_ID', ''),
+                'client_secret': os.getenv('FRANCETRAVAIL_CLIENT_SECRET', '')
+            },
+            'test': {
+                'enabled': False,  # Désactivé - scrapers réels activés
+                'base_url': 'https://example.com',
+                'max_pages': 1
+            },
             'indeed': {
-                'enabled': True,
+                'enabled': False,  # Remplacé par indeed_vps
                 'base_url': 'https://fr.indeed.com',
                 'search_path': '/jobs',
                 'params': {
@@ -103,7 +135,7 @@ class Settings:
                 }
             },
             'welcometothejungle': {
-                'enabled': True,
+                'enabled': False,  # Désactivé temporairement
                 'base_url': 'https://www.welcometothejungle.com',
                 'search_path': '/fr/jobs',
                 'params': {
@@ -113,7 +145,7 @@ class Settings:
                 }
             },
             'hellowork': {
-                'enabled': True,
+                'enabled': False,  # Non implémenté pour le moment
                 'base_url': 'https://www.hellowork.com',
                 'search_path': '/fr-fr/emploi/recherche.html',
                 'params': {
@@ -123,7 +155,7 @@ class Settings:
                 }
             },
             'labonnealternance': {
-                'enabled': True,
+                'enabled': False,  # API en erreur 500
                 'base_url': 'https://labonnealternance.pole-emploi.fr',
                 'api_url': 'https://labonnealternance.pole-emploi.fr/api/v1/jobs',
                 'params': {

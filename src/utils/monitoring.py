@@ -136,8 +136,8 @@ class MonitoringManager:
         """Monitore un métier spécifique sur un site"""
         async with semaphore:
             try:
-                # Rechercher des offres pour ce métier
-                jobs = await scraper.search_jobs(metier)
+                # Rechercher des offres pour ce métier (avec localisation par défaut)
+                jobs = await scraper.search_jobs(metier, location="Île-de-France")
                 site_stats['jobs_found'] += len(jobs)
 
                 # Sauvegarder les nouvelles offres
